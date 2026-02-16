@@ -9,9 +9,9 @@ The tool resolves a hostname to an IP address and attempts TCP connections acros
 
 - DNS resolution before scanning
 
-- Parallel scanning using ThreadPoolExecutor
+- Parallel scanning using ThreadPoolExecutor (300 concurrent connections)
 
-- Adjustable timeout for faster scans
+- Timeout-controlled connection attempts for faster scans
 
 - Displays only open ports with a closed/filtered summary
 
@@ -19,11 +19,13 @@ The tool resolves a hostname to an IP address and attempts TCP connections acros
 
 # Purpose
 
-This project was built to understand how network services expose themselves over TCP and how connection attempts behave under different conditions such as timeouts, filtering, and rate limiting.
-Rather than relying on existing scanners, the goal was to implement the connection logic manually to observe real network behavior and performance tradeoffs.
+This project was built to better understand how network services expose themselves over TCP and how connectivity checks behave in real environments.
+Instead of relying on existing scanners, the connection logic was implemented manually to observe timeouts, filtering, and performance tradeoffs when scanning large port ranges.
 
 # How it works
 
-The scanner performs a TCP connect attempt on each port.
-If the handshake succeeds, the port is reported as open.
-Failures or timeouts are grouped as closed/filtered.
+The scanner performs a TCP connect attempt on each port (1–65535).
+If the TCP handshake succeeds, the port is reported as open.
+Failures and timeouts are grouped as closed/filtered.
+
+Because many hosts rate-limit aggressive scans, results may vary depending on firewall behavior and network conditions.
