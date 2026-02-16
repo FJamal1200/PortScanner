@@ -1,9 +1,19 @@
 from rich.table import Table
 from rich.console import Console
-from rich.live import Live
 import socket
+import concurrent.futures
 
-console = Console()
+def scan_port(host, port):
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.3)
+            if s.connect_ex((host, port)) == 0:
+                return port
+    except:
+        pass
+    return None
+
+console = Console(force_terminal=True, color_system="truecolor")
 
 target = input("Enter your domain")
 
@@ -14,7 +24,7 @@ try:
 except socket.gaierror as e:
     console.print(f"[red] FAILED TARGET IP:[/red] {e}")
     exit()
-common_ports = [21,22,23,25,53,80,110,143,443,445,3389]
+common_ports = range(1,65536)
 closed_ports = 0
 failed_ports = []
 
@@ -22,25 +32,27 @@ table = Table(title="Port Scan", style = "bold green")
 table.add_column("IP", style="red")
 table.add_column("Status", style="blue")
 
-with Live(table, console=console, refresh_per_second=4):
-    for port in common_ports:
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(1)
-                result = s.connect_ex((target_ip, port))
-                if result == 0:
-                    table.add_row(str(port), "Open")
+console.print(f"[bold]Scanning {target} ({target_ip})...[/bold]\n")
 
-                else:
-                    table.add_row(str(port), "[yellow]CLosed/Filtered[/yellow]")
-                    closed_ports += 1
+open_ports = []
+total_ports = len(common_ports)
 
-        except Exception as e:
-            failed_ports.append(port)
-            console.print(f"[red] FAILED PORT(S): {port}{type(e).__name__}[/red] ")
+with concurrent.futures.ThreadPoolExecutor(max_workers=300) as executor:
+    futures = {executor.submit(scan_port, target_ip, port): port for port in common_ports}
+    for future in concurrent.futures.as_completed(futures):
+        result = future.result()
+        if result:
+            open_ports.append(result)
 
-if failed_ports !=[]:
-    console.print(f"[red] FAILED PORT(S): {failed_ports} ")
+                    
+for port in open_ports:
+    table.add_row(str(port), "Open")
 
-console.print(f"[red] Closed/Filtered PORT(S): {closed_ports} ")
-console.print("[green] SCAN NOW COMPLETE [/green]")
+console.print(table)
+
+closed_ports = total_ports - len(open_ports)
+
+console.print(f"\nScanned: {total_ports}")
+console.print(f"[green]Open:[/green] {len(open_ports)}")
+console.print(f"[red]Closed/Filtered:[/red] {closed_ports}")
+console.print("[green]Scan complete[/green]")
